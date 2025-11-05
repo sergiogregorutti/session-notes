@@ -1,35 +1,94 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState } from "react";
+import { Typography, Box, Alert } from "@mui/material";
+import { NoteForm } from "./components/NoteForm";
+import { NoteList } from "./components/NoteList";
+import { DeleteConfirmDialog } from "./components/DeleteConfirmDialog";
+import { useSessionNotes } from "./hooks/useSessionNotes";
+import type { SessionNote, CreateSessionNoteInput } from "./types";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const { notes, loading, error, createNote, deleteNote } = useSessionNotes();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [noteToDelete, setNoteToDelete] = useState<SessionNote | null>(null);
+  const [showForm, setShowForm] = useState(false);
+
+  const handleDeleteClick = (id: string) => {
+    const note = notes.find((n) => n.id === id);
+    if (note) {
+      setNoteToDelete(note);
+      setDeleteDialogOpen(true);
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (noteToDelete) {
+      try {
+        await deleteNote(noteToDelete.id);
+        setDeleteDialogOpen(false);
+        setNoteToDelete(null);
+      } catch (err) {
+        console.error("Failed to delete note:", err);
+      }
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setNoteToDelete(null);
+  };
+
+  const handleCreateNote = async (note: CreateSessionNoteInput) => {
+    await createNote(note);
+    setShowForm(false);
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <Box
+      sx={{
+        width: "100%",
+        maxWidth: 800,
+        margin: "0 auto",
+        padding: { xs: 2, sm: 4 },
+      }}
+    >
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h3" component="h1" gutterBottom>
+          Session Notes
+        </Typography>
+        <Typography variant="subtitle1" color="text.secondary">
+          Therapist note-taking application
+        </Typography>
+      </Box>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
+
+      {showForm ? (
+        <NoteForm
+          onSubmit={handleCreateNote}
+          onCancel={() => setShowForm(false)}
+        />
+      ) : (
+        <NoteList
+          notes={notes}
+          loading={loading}
+          error={null}
+          onDelete={handleDeleteClick}
+          onCreateNew={() => setShowForm(true)}
+        />
+      )}
+
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+        clientName={noteToDelete?.client_name || ""}
+      />
+    </Box>
+  );
 }
 
-export default App
+export default App;
